@@ -14,7 +14,7 @@ namespace FrpClient.UI
         Button startButton;
         Button stopButton;
         EditText config;
-        EditText logs;
+        TextView status;
         Thread frpThread;
         RadioButton chooseFrps;
         string filePath = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments);
@@ -30,7 +30,7 @@ namespace FrpClient.UI
             stopButton = FindViewById<Button>(Resource.Id.buttonStop);
             stopButton.Click += StopButton_Click;
             config = FindViewById<EditText>(Resource.Id.editTextForConfig);
-            logs = FindViewById<EditText>(Resource.Id.logs);
+            status = FindViewById<TextView>(Resource.Id.status);
 
             chooseFrps = FindViewById<RadioButton>(Resource.Id.frpsType);
             config.Text = FrpUtils.GetFrpConfiguration(IsFrps, filePath);
@@ -49,19 +49,20 @@ namespace FrpClient.UI
 
             try
             {
-                logs.Text = string.Empty;
+                status.Text = string.Empty;
 
                 if (frpThread == null)
                 {
                     frpThread = new Thread(new ThreadStart(StartFrp));
                     frpThread.Start();
                     startButton.Enabled = false;
-                    logs.Text = "Frp Start";
+                    stopButton.Enabled = true;
+                    status.Text = "frp Start";
                 }
             }
             catch (System.Exception ex)
             {
-                logs.Text = logs.Text + System.Environment.NewLine + ex;
+                status.Text = status.Text + System.Environment.NewLine + ex;
             }
         }
 
