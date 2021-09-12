@@ -1,67 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
-<GridLayout
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/container"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?android:attr/windowBackground"
-    android:columnCount="3"
-    android:rowCount="4">
+    android:overScrollMode="ifContentScrolls">
 
-    <TextView
-        android:layout_column="0"
-        android:layout_row="0"
-        android:id="@+id/configTitle"
-        android:layout_height="wrap_content"
-        android:layout_width="wrap_content"
-        android:layout_marginLeft="@dimen/activity_horizontal_margin"
-        android:layout_marginStart="@dimen/activity_horizontal_margin"
-        android:layout_marginTop="21.0dp"
-        android:text="@string/title_frpType"
-        android:textStyle="bold" />
-    <RadioGroup
-        android:layout_row="0"
-        android:layout_column="1"
+    <LinearLayout
         android:orientation="horizontal"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="@dimen/activity_horizontal_margin"
-        android:layout_marginStart="@dimen/activity_horizontal_margin"
-        android:layout_marginTop="@dimen/activity_vertical_margin">
-        <RadioButton
-            android:id="@+id/frpsType"
-            android:text="@string/frpsType"
-            android:checked="false"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <TextView
+            android:id="@+id/configTitle"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:layout_marginLeft="@dimen/activity_horizontal_margin"
+            android:layout_marginStart="@dimen/activity_horizontal_margin"
+            android:layout_marginTop="21.0dp"
+            android:text="@string/title_frpType"
+            android:textStyle="bold" />
+        <RadioGroup
+            android:orientation="horizontal"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:enabled="false"/>
-        <RadioButton
-            android:id="@+id/frpcType"
-            android:checked="true"
-            android:text="@string/frpcType"
+            android:layout_marginLeft="@dimen/activity_horizontal_margin"
+            android:layout_marginStart="@dimen/activity_horizontal_margin"
+            android:layout_marginTop="@dimen/activity_vertical_margin">
+            <RadioButton
+                android:id="@+id/frpsType"
+                android:text="@string/frpsType"
+                android:checked="false"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:enabled="false"/>
+            <RadioButton
+                android:id="@+id/frpcType"
+                android:checked="true"
+                android:text="@string/frpcType"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+        </RadioGroup>
+        <TextView
+            android:id="@+id/status"
+            android:layout_height="wrap_content"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-    </RadioGroup>
-    <TextView
-        android:layout_row="0"
-        android:layout_column="2"
-        android:id="@+id/status"
-        android:layout_height="wrap_content"
-        android:layout_width="wrap_content"
-        android:layout_marginLeft="@dimen/activity_horizontal_margin"
-        android:layout_marginStart="@dimen/activity_horizontal_margin"
-        android:layout_marginTop="21.0dp"
-        android:text="@string/stop"
-        android:textStyle="bold" />
+            android:layout_marginLeft="@dimen/activity_horizontal_margin"
+            android:layout_marginStart="@dimen/activity_horizontal_margin"
+            android:layout_marginTop="21.0dp"
+            android:text="@string/stop"
+            android:textStyle="bold" />
+    </LinearLayout>
     <EditText
         android:layout_row="1"
         android:layout_columnSpan="3"
         android:id="@+id/editTextForConfig"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="fill"
+        android:layout_height="200dp"
         android:inputType="textMultiLine"
         android:gravity="top"/>
     <Button
@@ -79,4 +77,4 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:enabled="false"/>
-</GridLayout>
+</LinearLayout>
