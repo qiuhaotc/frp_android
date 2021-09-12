@@ -35,7 +35,8 @@
             android:text="@string/frpsType"
             android:checked="false"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:enabled="false"/>
         <RadioButton
             android:id="@+id/frpcType"
             android:checked="true"
