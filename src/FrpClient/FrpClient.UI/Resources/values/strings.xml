@@ -1,8 +1,5 @@
 <resources>
-  <string name="app_name">FrpClient.UI</string>
-  <string name="title_home">Home</string>
-  <string name="title_dashboard">Dashboard</string>
-  <string name="title_notifications">Notifications</string>
+  <string name="app_name">frp client</string>
   <string name="title_frpType">frp</string>
   <string name="frpsType">frps</string>
   <string name="frpcType">frpc</string>
