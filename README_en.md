@@ -16,3 +16,8 @@ fill in frpc.ini content, then click the start to start frpc service, client sto
 Very very simple......
 
 ![UI](/docs/ui.jpg)
+
+## Thanks
+
+Thanks to this project about how to compile the frpc
+<https://github.com/FrpcCluster/frpc-Android>
