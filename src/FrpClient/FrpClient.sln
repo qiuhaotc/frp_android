@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FrpClient.UI", "FrpClient.U
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FrpClient.Business", "FrpClient.Business\FrpClient.Business.csproj", "{6AFDDDED-1822-48C9-9B97-FD9C31322D15}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FrpClient.FrpAssembly", "FrpClient.FrpAssembly\FrpClient.FrpAssembly.csproj", "{2F41C346-9274-4139-9A36-B82B268AB288}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,6 +25,10 @@ Global
 		{6AFDDDED-1822-48C9-9B97-FD9C31322D15}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6AFDDDED-1822-48C9-9B97-FD9C31322D15}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6AFDDDED-1822-48C9-9B97-FD9C31322D15}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F41C346-9274-4139-9A36-B82B268AB288}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F41C346-9274-4139-9A36-B82B268AB288}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F41C346-9274-4139-9A36-B82B268AB288}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F41C346-9274-4139-9A36-B82B268AB288}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

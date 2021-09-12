@@ -58,11 +58,20 @@ namespace FrpClient.UI
             var filePath = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments);
             var isFrps = FindViewById<RadioButton>(Resource.Id.frpsType).Checked;
 
-            process2 = FrpUtils.StartFrp2(isFrps, config.Text, filePath);
-            var output = process2.IsAlive;
+            try
+            {
+                FrpUtils.StartFrp(isFrps, config.Text, filePath);
+            }
+            catch (System.Exception ex)
+            {
+                Toast.MakeText(null, ex.Message, ToastLength.Long);
+            }
 
-            process = FrpUtils.StartFrp(isFrps, config.Text, filePath);
-            var b = process.ExitCode;
+            //process2 = FrpUtils.StartFrp2(isFrps, config.Text, filePath);
+            //var output = process2.IsAlive;
+
+            //process = FrpUtils.StartFrp(isFrps, config.Text, filePath);
+            //var b = process.ExitCode;
 
             //while (!process.StandardOutput.EndOfStream)
             //{
