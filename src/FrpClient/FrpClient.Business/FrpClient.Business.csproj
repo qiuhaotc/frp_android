@@ -52,10 +52,6 @@
     <Compile Include="FrpUtils.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Assests\amd64\frpc" />
-    <EmbeddedResource Include="Assests\amd64\frps" />
-    <None Include="Assests\armFrp\frpc" />
-    <EmbeddedResource Include="Assests\armFrp\frps" />
     <None Include="Resources\AboutResources.txt" />
   </ItemGroup>
   <ItemGroup>
@@ -66,6 +62,12 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Resources\drawable\" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FrpClient.FrpAssembly\FrpClient.FrpAssembly.csproj">
+      <Project>{2f41c346-9274-4139-9a36-b82b268ab288}</Project>
+      <Name>FrpClient.FrpAssembly</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\Xamarin\Android\Xamarin.Android.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
