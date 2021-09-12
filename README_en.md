@@ -2,10 +2,10 @@
 
 [中文文档](README.md) | [Readme](README_en.md)
 
-Compiled from frp v0.37.1
-Currently only implement the frpc function, haven't implement for frps yet
-Support http, https, tcp, udp, xtcp, xudp
-Can running under android 11, not tested other android version yet
+Compiled from frp v0.37.1  
+Currently only implement the frpc function, haven't implement for frps yet  
+Support http, https, tcp, udp, xtcp, xudp  
+Can running under android 11, not tested other android version yet  
 
 ## Usage
 
@@ -19,7 +19,7 @@ Very very simple......
 
 ## Thanks
 
-Thanks to this project about how to compile the frpc
+Thanks to this project about how to compile the frpc  
 <https://github.com/FrpcCluster/frpc-Android>
 
 ## 杂项
