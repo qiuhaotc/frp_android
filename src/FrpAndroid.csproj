@@ -20,7 +20,7 @@
   <!-- Signing values pulled from environment variables if present -->
   <PropertyGroup>
     <AndroidKeyStore>True</AndroidKeyStore>
-    <AndroidSigningKeyStore>android.keystore</AndroidSigningKeyStore>
+    <AndroidSigningKeyStore>frpandroid.keystore</AndroidSigningKeyStore>
     <AndroidSigningStorePass>$(ANDROID_KEYSTORE_PASS)</AndroidSigningStorePass>
     <AndroidSigningKeyAlias>$(ANDROID_KEY_ALIAS)</AndroidSigningKeyAlias>
     <AndroidSigningKeyPass>$(ANDROID_KEY_ALIAS_PASS)</AndroidSigningKeyPass>

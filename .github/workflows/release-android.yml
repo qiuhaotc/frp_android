@@ -18,7 +18,7 @@ env:
   Framework: net10.0-android
   Configuration: Release
   PackageFormat: apk
-  APP_PROJECT: FrpAndroid.csproj
+  APP_PROJECT: src/FrpAndroid.csproj
   ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
   ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
   ANDROID_KEY_ALIAS_PASS: ${{ secrets.ANDROID_KEY_ALIAS_PASS }}
@@ -39,8 +39,8 @@ jobs:
         run: |
           set -e
           if [ -n "${{ secrets.ANDROID_KEYSTORE_B64 }}" ]; then
-            PROJECT_DIR="$(pwd)/src"
-            KEYSTORE_PATH="$PROJECT_DIR/android.keystore"
+            PROJECT_DIR="src"
+            KEYSTORE_PATH="$PROJECT_DIR/frpandroid.keystore"
             echo "Decoding keystore to $KEYSTORE_PATH"
             echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > "$KEYSTORE_PATH"
             ls -l "$KEYSTORE_PATH"
