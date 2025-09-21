@@ -15,7 +15,7 @@ public class FrpForegroundService : Service
     public const string ExtraStartFrpc = "start_frpc";
     public const string ExtraStartFrps = "start_frps";
 
-    public static bool IsRunning { get; private set; } // ·ÀÖØ¸´
+    public static bool IsRunning { get; private set; } // é˜²é‡å¤
 
     FrpManager? _manager;
     bool _subscribed;
@@ -28,7 +28,7 @@ public class FrpForegroundService : Service
     {
         if (IsRunning)
         {
-            // ÒÑÔËĞĞÖ±½ÓË¢ĞÂ×´Ì¬
+            // å·²è¿è¡Œç›´æ¥åˆ·æ–°çŠ¶æ€
             UpdateNotification();
             return StartCommandResult.Sticky;
         }
@@ -38,12 +38,12 @@ public class FrpForegroundService : Service
         _wantFrps = intent?.GetBooleanExtra(ExtraStartFrps, false) ?? false;
 
         CreateChannel();
-        StartForeground(NotificationId, BuildNotification("³õÊ¼»¯ÖĞ..."));
+        StartForeground(NotificationId, BuildNotification("åˆå§‹åŒ–ä¸­..."));
 
         _manager = MauiApplication.Current.Services.GetService<FrpManager>();
         if (_manager != null && !_subscribed)
         {
-            // ½ö¶©ÔÄ×´Ì¬ÊÂ¼ş£¨²»ÔÙ¸ù¾İÈÕÖ¾Ë¢ĞÂ£©
+            // ä»…è®¢é˜…çŠ¶æ€äº‹ä»¶ï¼ˆä¸å†æ ¹æ®æ—¥å¿—åˆ·æ–°ï¼‰
             _manager.OnStateChanged += Manager_OnStateChanged;
             _subscribed = true;
         }
@@ -57,11 +57,11 @@ public class FrpForegroundService : Service
                     if (_wantFrpc && !_manager.IsRunning(FrpType.Frpc)) await _manager.StartFrpcAsync();
                     if (_wantFrps && !_manager.IsRunning(FrpType.Frps)) await _manager.StartFrpsAsync();
                 }
-                UpdateNotification("ÔËĞĞÖĞ");
+                UpdateNotification("è¿è¡Œä¸­");
             }
             catch (Exception ex)
             {
-                UpdateNotification("Æô¶¯Òì³£: " + Trim(ex.Message, 28));
+                UpdateNotification("å¯åŠ¨å¼‚å¸¸: " + Trim(ex.Message, 28));
             }
         });
 
@@ -70,7 +70,7 @@ public class FrpForegroundService : Service
 
     void Manager_OnStateChanged(object? sender, FrpStateEvent e)
     {
-        // ½öÔÚ×´Ì¬±ä»¯Ê±Ë¢ĞÂ
+        // ä»…åœ¨çŠ¶æ€å˜åŒ–æ—¶åˆ·æ–°
         UpdateNotification();
     }
 
@@ -81,8 +81,8 @@ public class FrpForegroundService : Service
             var mgr = (NotificationManager?)GetSystemService(NotificationService);
             if (mgr?.GetNotificationChannel(ChannelId) == null)
             {
-                var channel = new NotificationChannel(ChannelId, "FRP ÔËĞĞ", NotificationImportance.Low)
-                { Description = "FRP Ç°Ì¨·şÎñ" };
+                var channel = new NotificationChannel(ChannelId, "FRP è¿è¡Œ", NotificationImportance.Low)
+                { Description = "FRP å‰å°æœåŠ¡" };
                 mgr?.CreateNotificationChannel(channel);
             }
         }
@@ -102,7 +102,7 @@ public class FrpForegroundService : Service
 
         return new NotificationCompat.Builder(this, ChannelId)
             .SetOngoing(true)
-            .SetContentTitle("FRP ·şÎñ")
+            .SetContentTitle("FRP æœåŠ¡")
             .SetContentText(state)
             .SetSmallIcon(Android.Resource.Drawable.StatSysDataBluetooth)
             .SetStyle(new NotificationCompat.BigTextStyle().BigText(state))
