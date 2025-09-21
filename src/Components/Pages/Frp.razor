@@ -1,0 +1,221 @@
+@page "/"
+@page "/frp"
+@inject FrpAndroid.Services.FrpManager Manager
+@inject IServiceProvider Services
+@using FrpAndroid.Services
+
+<h3 class="mb-3">FRP 管理</h3>
+<div class="card mb-3">
+  <div class="card-body d-flex flex-wrap align-items-center gap-3">
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="ckFrpcBoot" @bind="autoStartFrpc" />
+      <label class="form-check-label" for="ckFrpcBoot">开机自启 frpc</label>
+    </div>
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="ckFrpsBoot" @bind="autoStartFrps" />
+      <label class="form-check-label" for="ckFrpsBoot">开机自启 frps</label>
+    </div>
+    <button class="btn btn-sm btn-primary" @onclick="SaveBootOptions">保存开机启动</button>
+    <button class="btn btn-sm btn-outline-secondary" @onclick="StartForegroundService">前台常驻</button>
+    <small class="text-muted">需要允许后台与通知权限</small>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-md-6">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>frpc 配置</span>
+        <span class="badge bg-@(Manager.IsRunning(FrpType.Frpc)?"success":"secondary")">@(Manager.IsRunning(FrpType.Frpc)?"运行中":"未运行")</span>
+      </div>
+      <div class="card-body p-2">
+        <textarea class="form-control" style="height:220px" @bind="frpcConfig"></textarea>
+      </div>
+      <div class="card-footer d-flex flex-wrap gap-2">
+        <button class="btn btn-sm btn-outline-primary" @onclick="LoadFrpcConfig">加载</button>
+        <button class="btn btn-sm btn-outline-success" @onclick="SaveFrpcConfig">保存</button>
+        <button class="btn btn-sm btn-primary" @onclick="StartFrpcAsync">启动</button>
+        <button class="btn btn-sm btn-danger" @onclick="StopFrpcAction">停止</button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="(()=>PickConfig(FrpType.Frpc))">导入</button>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>frps 配置</span>
+        <span class="badge bg-@(Manager.IsRunning(FrpType.Frps)?"success":"secondary")">@(Manager.IsRunning(FrpType.Frps)?"运行中":"未运行")</span>
+      </div>
+      <div class="card-body p-2">
+        <textarea class="form-control" style="height:220px" @bind="frpsConfig"></textarea>
+      </div>
+      <div class="card-footer d-flex flex-wrap gap-2">
+        <button class="btn btn-sm btn-outline-primary" @onclick="LoadFrpsConfig">加载</button>
+        <button class="btn btn-sm btn-outline-success" @onclick="SaveFrpsConfig">保存</button>
+        <button class="btn btn-sm btn-primary" @onclick="StartFrpsAsync">启动</button>
+        <button class="btn btn-sm btn-danger" @onclick="StopFrpsAction">停止</button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="(()=>PickConfig(FrpType.Frps))">导入</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-header d-flex align-items-center gap-2">
+    <span>实时日志 (最多 1000 条, 新→旧)</span>
+    <button class="btn btn-sm btn-outline-secondary" @onclick="RefreshLogs">刷新</button>
+    <button class="btn btn-sm btn-outline-danger" @onclick="ClearLogs">清空显示</button>
+  </div>
+  <div class="card-body p-2" style="max-height:320px;overflow:auto;font-family:monospace;font-size:12px" @ref="logDiv">
+    @if (logs.Count == 0)
+    {
+      <div class="text-muted">无日志</div>
+    }
+    else
+    {
+      @foreach (var l in logs)
+      {
+        <div>@l</div>
+      }
+    }
+  </div>
+</div>
+
+@code {
+    List<string> logs = new();
+    string frpcConfig = string.Empty;
+    string frpsConfig = string.Empty;
+    bool autoStartFrpc;
+    bool autoStartFrps;
+    ElementReference logDiv;
+
+    const string PrefKey = "frp_boot_opts.json";
+    const long ImportMaxBytes = 512 * 1024; // 512KB 防止大文件卡住
+
+    protected override async Task OnInitializedAsync()
+    {
+        Manager.OnLog += OnLog;
+        frpcConfig = await Manager.ReadConfigAsync(FrpType.Frpc);
+        frpsConfig = await Manager.ReadConfigAsync(FrpType.Frps);
+        LoadBootOptions();
+        LoadBufferedLogs();
+    }
+
+    void LoadBufferedLogs()
+    {
+        logs = Manager.GetLogs().Reverse().ToList();
+        StateHasChanged();
+    }
+
+    string PrefPath => Path.Combine(FileSystem.AppDataDirectory, PrefKey);
+
+    void LoadBootOptions()
+    {
+        try
+        {
+            if (File.Exists(PrefPath))
+            {
+                var json = File.ReadAllText(PrefPath);
+                var dto = System.Text.Json.JsonSerializer.Deserialize<BootOptions>(json) ?? new();
+                autoStartFrpc = dto.Frpc; autoStartFrps = dto.Frps;
+            }
+        }
+        catch { }
+    }
+
+    void SaveBootOptions()
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(new BootOptions { Frpc = autoStartFrpc, Frps = autoStartFrps });
+        File.WriteAllText(PrefPath, json);
+        logs.Insert(0, "[BOOT] 保存开机设置"); TrimDisplayed();
+    }
+
+    void StartForegroundService()
+    {
+#if ANDROID
+        var ctrl = Services.GetService<IFrpForegroundController>();
+        ctrl?.EnsureServiceRunning(autoStartFrpc, autoStartFrps);
+        logs.Insert(0, "[SVC] 已请求前台服务启动"); TrimDisplayed();
+#endif
+    }
+
+    void OnLog(object? sender, FrpAndroid.Services.FrpLogEvent e)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            logs.Insert(0, $"[{e.Type}] {e.Message}");
+            TrimDisplayed();
+            StateHasChanged();
+        });
+    }
+
+    void TrimDisplayed()
+    {
+        if (logs.Count > 1000) logs.RemoveRange(1000, logs.Count - 1000);
+    }
+
+    void RefreshLogs() => LoadBufferedLogs();
+    void ClearLogs() => logs.Clear();
+
+    async Task LoadFrpcConfig() => frpcConfig = await Manager.ReadConfigAsync(FrpType.Frpc);
+    async Task LoadFrpsConfig() => frpsConfig = await Manager.ReadConfigAsync(FrpType.Frps);
+    async Task SaveFrpcConfig() { await Manager.SaveConfigAsync(FrpType.Frpc, frpcConfig); logs.Insert(0, "[CFG] 保存 frpc.ini"); TrimDisplayed(); }
+    async Task SaveFrpsConfig() { await Manager.SaveConfigAsync(FrpType.Frps, frpsConfig); logs.Insert(0, "[CFG] 保存 frps.ini"); TrimDisplayed(); }
+
+    async Task StartFrpcAsync(){ var r = await Manager.StartFrpcAsync(); logs.Insert(0,"[ACT] frpc: "+r.message); TrimDisplayed(); }
+    async Task StartFrpsAsync(){ var r = await Manager.StartFrpsAsync(); logs.Insert(0,"[ACT] frps: "+r.message); TrimDisplayed(); }
+    void StopFrpcAction(){ if (Manager.StopFrpc()) { logs.Insert(0,"[ACT] frpc stopped"); TrimDisplayed(); } }
+    void StopFrpsAction(){ if (Manager.StopFrps()) { logs.Insert(0,"[ACT] frps stopped"); TrimDisplayed(); } }
+
+    bool IsValidIni(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return false;
+        if (!content.Contains("[common", StringComparison.OrdinalIgnoreCase)) return false;
+        if (!content.Contains("=", StringComparison.Ordinal)) return false;
+        // 简单校验: 行数不可过大
+        if (content.Count(c => c == '\n') > 5000) return false;
+        return true;
+    }
+
+    async Task PickConfig(FrpType type)
+    {
+#if ANDROID
+        try
+        {
+            var result = await FilePicker.Default.PickAsync(new PickOptions { PickerTitle = "选择 .ini 配置文件" });
+            if (result == null) return;
+
+            var name = result.FileName ?? string.Empty;
+            if (!name.EndsWith(".ini", StringComparison.OrdinalIgnoreCase))
+            {
+                logs.Insert(0, "[ERR] 仅支持 .ini 文件: " + name); TrimDisplayed(); return;
+            }
+
+            using var stream = await result.OpenReadAsync();
+            try
+            {
+                if (stream.CanSeek && stream.Length > ImportMaxBytes)
+                { logs.Insert(0, "[ERR] 文件过大(>512KB)" ); TrimDisplayed(); return; }
+            }
+            catch { }
+
+            using var reader = new StreamReader(stream);
+            var content = await reader.ReadToEndAsync();
+            if (!IsValidIni(content))
+            { logs.Insert(0, "[ERR] ini 内容校验失败, 必须包含`[Common`和`=`" ); TrimDisplayed(); return; }
+
+            if (type == FrpType.Frpc) { frpcConfig = content; await SaveFrpcConfig(); }
+            else { frpsConfig = content; await SaveFrpsConfig(); }
+            logs.Insert(0, "[IMP] 导入成功: " + name); TrimDisplayed();
+        }
+        catch (Exception ex)
+        {
+            logs.Insert(0, "[ERR] 导入失败: " + ex.Message); TrimDisplayed();
+        }
+#endif
+    }
+
+    public void Dispose() { Manager.OnLog -= OnLog; }
+
+    class BootOptions { public bool Frpc { get; set; } public bool Frps { get; set; } }
+}

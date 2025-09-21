@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/FrpInfo/">
+    <File Path="../.gitattributes" />
+    <File Path="../.gitignore" />
+    <File Path="../FrpInfo/FrpAndroid.md" />
+    <File Path="../Readme.md" />
+    <File Path="../README_en.md" />
+  </Folder>
+  <Project Path="FrpAndroid.csproj">
+    <Deploy />
+  </Project>
+</Solution>

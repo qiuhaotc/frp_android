@@ -1,8 +1,0 @@
-<resources>
-  <string name="app_name">frp client</string>
-  <string name="title_frpType">frp</string>
-  <string name="frpsType">frps</string>
-  <string name="frpcType">frpc</string>
-  <string name="start">start</string>
-  <string name="stop">stop</string>
-</resources>
