@@ -35,6 +35,14 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Install MAUI Android workload
+        run: |
+          set -e
+          echo "Installing MAUI Android workload"
+          dotnet workload install maui-android --source https://api.nuget.org/v3/index.json
+          dotnet workload list
+          dotnet --info
+
       - name: Decode keystore (optional)
         run: |
           set -e
@@ -57,21 +65,23 @@ jobs:
       - name: Publish APK
         run: |
           if [ "$HAS_KEYSTORE" = "true" ]; then
-            SIGN_ARGS="/p:AndroidKeyStore=true \
-            /p:ANDROID_KEYSTORE=$ANDROID_KEYSTORE \
-            /p:ANDROID_KEYSTORE_PASS=$ANDROID_KEYSTORE_PASS \
-            /p:ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS \
-            /p:ANDROID_KEY_ALIAS_PASS=$ANDROID_KEY_ALIAS_PASS"
+            SIGN_ARGS=(
+              /p:AndroidKeyStore=true
+              /p:ANDROID_KEYSTORE=$ANDROID_KEYSTORE
+              /p:ANDROID_KEYSTORE_PASS=$ANDROID_KEYSTORE_PASS
+              /p:ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS
+              /p:ANDROID_KEY_ALIAS_PASS=$ANDROID_KEY_ALIAS_PASS
+            )
           else
-            SIGN_ARGS="/p:AndroidKeyStore=false"
+            SIGN_ARGS=(/p:AndroidKeyStore=false)
           fi
-          echo "Using SIGN_ARGS=$SIGN_ARGS"
+          echo "Using SIGN_ARGS=${SIGN_ARGS[@]}"
           dotnet publish $APP_PROJECT \
             -c $Configuration \
             -f $Framework \
             /p:AndroidPackageFormat=$PackageFormat \
             /p:RunAOTCompilation=false \
-            $SIGN_ARGS
+            ${SIGN_ARGS[@]}
 
       - name: Locate artifact
         id: find_apk
