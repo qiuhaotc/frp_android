@@ -19,6 +19,7 @@ env:
   Configuration: Release
   PackageFormat: apk
   APP_PROJECT: src/FrpAndroid.csproj
+  OUTPUT_DIR: artifacts/android
   ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
   ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
   ANDROID_KEY_ALIAS_PASS: ${{ secrets.ANDROID_KEY_ALIAS_PASS }}
@@ -35,13 +36,13 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Install MAUI Android workload
+      - name: Install MAUI Android workload (current SDK only)
         run: |
           set -e
-          echo "Installing MAUI Android workload"
+          SDK_VER=$(dotnet --version)
+            echo "Installing maui-android workload for SDK $SDK_VER"
           dotnet workload install maui-android --source https://api.nuget.org/v3/index.json
-          dotnet workload list
-          dotnet --info
+          dotnet workload list | grep maui-android || true
 
       - name: Decode keystore (optional)
         run: |
@@ -64,6 +65,7 @@ jobs:
 
       - name: Publish APK
         run: |
+          mkdir -p "$OUTPUT_DIR"
           if [ "$HAS_KEYSTORE" = "true" ]; then
             SIGN_ARGS=(
               /p:AndroidKeyStore=true
@@ -81,13 +83,15 @@ jobs:
             -f $Framework \
             /p:AndroidPackageFormat=$PackageFormat \
             /p:RunAOTCompilation=false \
+            -o $OUTPUT_DIR \
             ${SIGN_ARGS[@]}
+          echo "Publish directory contents:"; ls -l $OUTPUT_DIR
 
       - name: Locate artifact
         id: find_apk
         run: |
-          APK=$(find . -path "*/bin/$Configuration/$Framework/publish" -type f -name '*.apk' | head -n 1)
-          if [ -z "$APK" ]; then echo "No APK found"; exit 1; fi
+          APK=$(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*.apk' | head -n 1)
+          if [ -z "$APK" ]; then echo "No APK found in $OUTPUT_DIR"; ls -R "$OUTPUT_DIR" || true; exit 1; fi
           echo "apk=$APK" >> $GITHUB_OUTPUT
           echo "Found APK: $APK"
 
