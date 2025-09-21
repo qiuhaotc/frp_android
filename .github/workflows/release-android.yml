@@ -49,7 +49,7 @@ jobs:
           set -e
           if [ -n "${{ secrets.ANDROID_KEYSTORE_B64 }}" ]; then
             PROJECT_DIR="src"
-            KEYSTORE_PATH="$PROJECT_DIR/frpandroid.keystore"
+            KEYSTORE_PATH="$PROJECT_DIR/frp.keystore"
             echo "Decoding keystore to $KEYSTORE_PATH"
             echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > "$KEYSTORE_PATH"
             ls -l "$KEYSTORE_PATH"
@@ -69,7 +69,6 @@ jobs:
           if [ "$HAS_KEYSTORE" = "true" ]; then
             SIGN_ARGS=(
               /p:AndroidKeyStore=true
-              /p:ANDROID_KEYSTORE=$ANDROID_KEYSTORE
               /p:ANDROID_KEYSTORE_PASS=$ANDROID_KEYSTORE_PASS
               /p:ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS
               /p:ANDROID_KEY_ALIAS_PASS=$ANDROID_KEY_ALIAS_PASS
@@ -90,7 +89,9 @@ jobs:
       - name: Locate artifact
         id: find_apk
         run: |
-          APK=$(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*.apk' | head -n 1)
+          APK=$(find "$OUTPUT_DIR" -maxdepth 1 -type f -name 'com.qiuhaotc.frpandroid-Signed.apk' | head -n 1)
+          if [ -z "$APK" ]; then APK=$(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*Signed.apk' | head -n 1); fi
+          if [ -z "$APK" ]; then APK=$(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*.apk' | head -n 1); fi
           if [ -z "$APK" ]; then echo "No APK found in $OUTPUT_DIR"; ls -R "$OUTPUT_DIR" || true; exit 1; fi
           echo "apk=$APK" >> $GITHUB_OUTPUT
           echo "Found APK: $APK"
