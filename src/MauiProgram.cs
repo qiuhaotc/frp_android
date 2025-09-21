@@ -14,6 +14,8 @@ namespace FrpAndroid
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+                    // 如果添加了中文字体文件（例如 Resources/Fonts/NotoSansSC-Regular.otf），解除下面注释
+                    // fonts.AddFont("NotoSansSC-Regular.otf", "NotoSansSC");
                 });
 
             builder.Services.AddMauiBlazorWebView();

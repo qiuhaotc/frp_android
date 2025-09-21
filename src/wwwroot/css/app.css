@@ -1,6 +1,12 @@
 ﻿/*#if (SampleContent)*/
+@font-face {
+    font-family: 'NotoSansSC';
+    src: url('../fonts/NotoSansSC-Regular.otf') format('opentype');
+    font-display: swap;
+}
+
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: OpenSansRegular, NotoSansSC, 'Noto Sans SC', 'Noto Sans CJK SC', 'Source Han Sans SC', 'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif;
 }
 
 a, .btn-link {

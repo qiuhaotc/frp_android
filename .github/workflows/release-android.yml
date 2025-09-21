@@ -63,6 +63,20 @@ jobs:
       - name: Restore
         run: dotnet restore $APP_PROJECT
 
+      - name: Download Chinese font subset
+        run: |
+          set -e
+          FONT_DIR="src/wwwroot/fonts"
+          mkdir -p "$FONT_DIR"
+          TARGET="$FONT_DIR/NotoSansSC-Regular.otf"
+          if [ ! -f "$TARGET" ]; then
+            echo "Downloading NotoSansSC subset font..."
+            curl -L -o "$TARGET" https://github.com/googlefonts/noto-cjk/blob/main/Sans/SubsetOTF/SC/NotoSansSC-Regular.otf?raw=1 || echo "Fallback: download failed (provide your own subset)."
+          else
+            echo "Font already exists, skipping download."
+          fi
+          ls -l "$FONT_DIR"
+
       - name: Publish APK
         run: |
           mkdir -p "$OUTPUT_DIR"
