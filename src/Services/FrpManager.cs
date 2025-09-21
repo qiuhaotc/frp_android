@@ -6,7 +6,7 @@ namespace FrpAndroid.Services;
 
 public class FrpManager
 {
-    // µ¥¶À·ÅÖÃÕıÔò³£Á¿ (Ê¹ÓÃ verbatim + Ë«·´Ğ±¸Ü ÕıÈ·×ªÒå)
+    // å•ç‹¬æ”¾ç½®æ­£åˆ™å¸¸é‡ (ä½¿ç”¨ verbatim + åŒåæ–œæ  æ­£ç¡®è½¬ä¹‰)
     static readonly Regex AnsiRegex = new(@"\x1B\[[0-9;]*[A-Za-z]", RegexOptions.Compiled);
     readonly string _appDataDir;
     System.Diagnostics.Process? _frpcProc;
@@ -34,7 +34,7 @@ public class FrpManager
         }
         catch (Exception ex)
         {
-            AddLog(FrpType.Frpc, "»ñÈ¡ nativeLibraryDir Ê§°Ü: " + ex.Message);
+            AddLog(FrpType.Frpc, "è·å– nativeLibraryDir å¤±è´¥: " + ex.Message);
             return _appDataDir;
         }
     }
@@ -70,7 +70,7 @@ public class FrpManager
 
     public async Task<(bool ok,string message)> StartFrpcAsync()
     {
-        if (IsRunning(FrpType.Frpc)) return (true, "frpc ÒÑÔÚÔËĞĞ");
+        if (IsRunning(FrpType.Frpc)) return (true, "frpc å·²åœ¨è¿è¡Œ");
         EnsureDefaults(FrpType.Frpc);
         var cfg = GetConfigPath(FrpType.Frpc);
         var bin = GetBinaryPath(FrpType.Frpc);
@@ -81,7 +81,7 @@ public class FrpManager
 
     public async Task<(bool ok,string message)> StartFrpsAsync()
     {
-        if (IsRunning(FrpType.Frps)) return (true, "frps ÒÑÔÚÔËĞĞ");
+        if (IsRunning(FrpType.Frps)) return (true, "frps å·²åœ¨è¿è¡Œ");
         EnsureDefaults(FrpType.Frps);
         var cfg = GetConfigPath(FrpType.Frps);
         var bin = GetBinaryPath(FrpType.Frps);
@@ -94,8 +94,8 @@ public class FrpManager
     {
         try
         {
-            if (!File.Exists(binaryPath)) { message = "¶ş½øÖÆ²»´æÔÚ: " + binaryPath; return null; }
-            if (!File.Exists(configPath)) { message = "ÅäÖÃÎÄ¼ş²»´æÔÚ: " + configPath; return null; }
+            if (!File.Exists(binaryPath)) { message = "äºŒè¿›åˆ¶ä¸å­˜åœ¨: " + binaryPath; return null; }
+            if (!File.Exists(configPath)) { message = "é…ç½®æ–‡ä»¶ä¸å­˜åœ¨: " + configPath; return null; }
             try { Java.Lang.Runtime.GetRuntime().Exec(new[]{"/system/bin/chmod","755", binaryPath}); } catch { }
             var psi = new System.Diagnostics.ProcessStartInfo
             {
@@ -108,12 +108,12 @@ public class FrpManager
                 CreateNoWindow = true
             };
             var proc = System.Diagnostics.Process.Start(psi);
-            if (proc == null) { message = "Æô¶¯Ê§°Ü"; return null; }
+            if (proc == null) { message = "å¯åŠ¨å¤±è´¥"; return null; }
             _ = Task.Run(()=>PumpLogsAsync(proc, type));
-            message = "Æô¶¯³É¹¦"; return proc;
+            message = "å¯åŠ¨æˆåŠŸ"; return proc;
         }
         catch (Exception ex)
-        { message = ex.Message.Contains("ermission")? ("Ö´ĞĞÈ¨ÏŞ´íÎó: "+ex.Message): ("Æô¶¯Òì³£: "+ex.Message); return null; }
+        { message = ex.Message.Contains("ermission")? ("æ‰§è¡Œæƒé™é”™è¯¯: "+ex.Message): ("å¯åŠ¨å¼‚å¸¸: "+ex.Message); return null; }
     }
 
     async Task PumpLogsAsync(System.Diagnostics.Process proc, FrpType type)
@@ -127,8 +127,8 @@ public class FrpManager
             }
             string? err; while((err = await proc.StandardError.ReadLineAsync())!=null) AddLog(type, err);
         }
-        catch(Exception ex){ AddLog(type, "ÈÕÖ¾²¶»ñÒì³£: "+ex.Message); }
-        finally{ OnStateChanged?.Invoke(this, new FrpStateEvent(type,false,"ÒÑÍË³ö")); }
+        catch(Exception ex){ AddLog(type, "æ—¥å¿—æ•è·å¼‚å¸¸: "+ex.Message); }
+        finally{ OnStateChanged?.Invoke(this, new FrpStateEvent(type,false,"å·²é€€å‡º")); }
     }
 
     public bool StopFrpc() => Stop(ref _frpcProc, FrpType.Frpc);
@@ -139,9 +139,9 @@ public class FrpManager
         try
         {
             if (p is null) return false;
-            if (!p.HasExited){ p.Kill(); p.WaitForExit(2000);} p.Dispose(); p=null; AddLog(type,"ÒÑÍ£Ö¹"); OnStateChanged?.Invoke(this,new FrpStateEvent(type,false,"ÒÑÍ£Ö¹")); return true;
+            if (!p.HasExited){ p.Kill(); p.WaitForExit(2000);} p.Dispose(); p=null; AddLog(type,"å·²åœæ­¢"); OnStateChanged?.Invoke(this,new FrpStateEvent(type,false,"å·²åœæ­¢")); return true;
         }
-        catch(Exception ex){ AddLog(type,"Í£Ö¹Òì³£: "+ex.Message); OnStateChanged?.Invoke(this,new FrpStateEvent(type,false,"Í£Ö¹Òì³£")); return false; }
+        catch(Exception ex){ AddLog(type,"åœæ­¢å¼‚å¸¸: "+ex.Message); OnStateChanged?.Invoke(this,new FrpStateEvent(type,false,"åœæ­¢å¼‚å¸¸")); return false; }
     }
 
     void AddLog(FrpType type, string raw)

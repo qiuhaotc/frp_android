@@ -4,20 +4,20 @@
 @inject IServiceProvider Services
 @using FrpAndroid.Services
 
-<h3 class="mb-3">FRP ¹ÜÀí</h3>
+<h3 class="mb-3">FRP ç®¡ç†</h3>
 <div class="card mb-3">
   <div class="card-body d-flex flex-wrap align-items-center gap-3">
     <div class="form-check">
       <input class="form-check-input" type="checkbox" id="ckFrpcBoot" @bind="autoStartFrpc" />
-      <label class="form-check-label" for="ckFrpcBoot">¿ª»ú×ÔÆô frpc</label>
+      <label class="form-check-label" for="ckFrpcBoot">å¼€æœºè‡ªå¯ frpc</label>
     </div>
     <div class="form-check">
       <input class="form-check-input" type="checkbox" id="ckFrpsBoot" @bind="autoStartFrps" />
-      <label class="form-check-label" for="ckFrpsBoot">¿ª»ú×ÔÆô frps</label>
+      <label class="form-check-label" for="ckFrpsBoot">å¼€æœºè‡ªå¯ frps</label>
     </div>
-    <button class="btn btn-sm btn-primary" @onclick="SaveBootOptions">±£´æ¿ª»úÆô¶¯</button>
-    <button class="btn btn-sm btn-outline-secondary" @onclick="StartForegroundService">Ç°Ì¨³£×¤</button>
-    <small class="text-muted">ĞèÒªÔÊĞíºóÌ¨ÓëÍ¨ÖªÈ¨ÏŞ</small>
+    <button class="btn btn-sm btn-primary" @onclick="SaveBootOptions">ä¿å­˜å¼€æœºå¯åŠ¨</button>
+    <button class="btn btn-sm btn-outline-secondary" @onclick="StartForegroundService">å‰å°å¸¸é©»</button>
+    <small class="text-muted">éœ€è¦å…è®¸åå°ä¸é€šçŸ¥æƒé™</small>
   </div>
 </div>
 
@@ -25,36 +25,36 @@
   <div class="col-12 col-md-6">
     <div class="card h-100">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <span>frpc ÅäÖÃ</span>
-        <span class="badge bg-@(Manager.IsRunning(FrpType.Frpc)?"success":"secondary")">@(Manager.IsRunning(FrpType.Frpc)?"ÔËĞĞÖĞ":"Î´ÔËĞĞ")</span>
+        <span>frpc é…ç½®</span>
+        <span class="badge bg-@(Manager.IsRunning(FrpType.Frpc)?"success":"secondary")">@(Manager.IsRunning(FrpType.Frpc)?"è¿è¡Œä¸­":"æœªè¿è¡Œ")</span>
       </div>
       <div class="card-body p-2">
         <textarea class="form-control" style="height:220px" @bind="frpcConfig"></textarea>
       </div>
       <div class="card-footer d-flex flex-wrap gap-2">
-        <button class="btn btn-sm btn-outline-primary" @onclick="LoadFrpcConfig">¼ÓÔØ</button>
-        <button class="btn btn-sm btn-outline-success" @onclick="SaveFrpcConfig">±£´æ</button>
-        <button class="btn btn-sm btn-primary" @onclick="StartFrpcAsync">Æô¶¯</button>
-        <button class="btn btn-sm btn-danger" @onclick="StopFrpcAction">Í£Ö¹</button>
-        <button class="btn btn-sm btn-outline-secondary" @onclick="(()=>PickConfig(FrpType.Frpc))">µ¼Èë</button>
+        <button class="btn btn-sm btn-outline-primary" @onclick="LoadFrpcConfig">åŠ è½½</button>
+        <button class="btn btn-sm btn-outline-success" @onclick="SaveFrpcConfig">ä¿å­˜</button>
+        <button class="btn btn-sm btn-primary" @onclick="StartFrpcAsync">å¯åŠ¨</button>
+        <button class="btn btn-sm btn-danger" @onclick="StopFrpcAction">åœæ­¢</button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="(()=>PickConfig(FrpType.Frpc))">å¯¼å…¥</button>
       </div>
     </div>
   </div>
   <div class="col-12 col-md-6">
     <div class="card h-100">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <span>frps ÅäÖÃ</span>
-        <span class="badge bg-@(Manager.IsRunning(FrpType.Frps)?"success":"secondary")">@(Manager.IsRunning(FrpType.Frps)?"ÔËĞĞÖĞ":"Î´ÔËĞĞ")</span>
+        <span>frps é…ç½®</span>
+        <span class="badge bg-@(Manager.IsRunning(FrpType.Frps)?"success":"secondary")">@(Manager.IsRunning(FrpType.Frps)?"è¿è¡Œä¸­":"æœªè¿è¡Œ")</span>
       </div>
       <div class="card-body p-2">
         <textarea class="form-control" style="height:220px" @bind="frpsConfig"></textarea>
       </div>
       <div class="card-footer d-flex flex-wrap gap-2">
-        <button class="btn btn-sm btn-outline-primary" @onclick="LoadFrpsConfig">¼ÓÔØ</button>
-        <button class="btn btn-sm btn-outline-success" @onclick="SaveFrpsConfig">±£´æ</button>
-        <button class="btn btn-sm btn-primary" @onclick="StartFrpsAsync">Æô¶¯</button>
-        <button class="btn btn-sm btn-danger" @onclick="StopFrpsAction">Í£Ö¹</button>
-        <button class="btn btn-sm btn-outline-secondary" @onclick="(()=>PickConfig(FrpType.Frps))">µ¼Èë</button>
+        <button class="btn btn-sm btn-outline-primary" @onclick="LoadFrpsConfig">åŠ è½½</button>
+        <button class="btn btn-sm btn-outline-success" @onclick="SaveFrpsConfig">ä¿å­˜</button>
+        <button class="btn btn-sm btn-primary" @onclick="StartFrpsAsync">å¯åŠ¨</button>
+        <button class="btn btn-sm btn-danger" @onclick="StopFrpsAction">åœæ­¢</button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="(()=>PickConfig(FrpType.Frps))">å¯¼å…¥</button>
       </div>
     </div>
   </div>
@@ -62,14 +62,14 @@
 
 <div class="card mt-3">
   <div class="card-header d-flex align-items-center gap-2">
-    <span>ÊµÊ±ÈÕÖ¾ (×î¶à 1000 Ìõ, ĞÂ¡ú¾É)</span>
-    <button class="btn btn-sm btn-outline-secondary" @onclick="RefreshLogs">Ë¢ĞÂ</button>
-    <button class="btn btn-sm btn-outline-danger" @onclick="ClearLogs">Çå¿ÕÏÔÊ¾</button>
+    <span>å®æ—¶æ—¥å¿— (æœ€å¤š 1000 æ¡, æ–°â†’æ—§)</span>
+    <button class="btn btn-sm btn-outline-secondary" @onclick="RefreshLogs">åˆ·æ–°</button>
+    <button class="btn btn-sm btn-outline-danger" @onclick="ClearLogs">æ¸…ç©ºæ˜¾ç¤º</button>
   </div>
   <div class="card-body p-2" style="max-height:320px;overflow:auto;font-family:monospace;font-size:12px" @ref="logDiv">
     @if (logs.Count == 0)
     {
-      <div class="text-muted">ÎŞÈÕÖ¾</div>
+      <div class="text-muted">æ— æ—¥å¿—</div>
     }
     else
     {
@@ -90,7 +90,7 @@
     ElementReference logDiv;
 
     const string PrefKey = "frp_boot_opts.json";
-    const long ImportMaxBytes = 512 * 1024; // 512KB ·ÀÖ¹´óÎÄ¼ş¿¨×¡
+    const long ImportMaxBytes = 512 * 1024; // 512KB é˜²æ­¢å¤§æ–‡ä»¶å¡ä½
 
     protected override async Task OnInitializedAsync()
     {
@@ -127,7 +127,7 @@
     {
         var json = System.Text.Json.JsonSerializer.Serialize(new BootOptions { Frpc = autoStartFrpc, Frps = autoStartFrps });
         File.WriteAllText(PrefPath, json);
-        logs.Insert(0, "[BOOT] ±£´æ¿ª»úÉèÖÃ"); TrimDisplayed();
+        logs.Insert(0, "[BOOT] ä¿å­˜å¼€æœºè®¾ç½®"); TrimDisplayed();
     }
 
     void StartForegroundService()
@@ -135,7 +135,7 @@
 #if ANDROID
         var ctrl = Services.GetService<IFrpForegroundController>();
         ctrl?.EnsureServiceRunning(autoStartFrpc, autoStartFrps);
-        logs.Insert(0, "[SVC] ÒÑÇëÇóÇ°Ì¨·şÎñÆô¶¯"); TrimDisplayed();
+        logs.Insert(0, "[SVC] å·²è¯·æ±‚å‰å°æœåŠ¡å¯åŠ¨"); TrimDisplayed();
 #endif
     }
 
@@ -159,8 +159,8 @@
 
     async Task LoadFrpcConfig() => frpcConfig = await Manager.ReadConfigAsync(FrpType.Frpc);
     async Task LoadFrpsConfig() => frpsConfig = await Manager.ReadConfigAsync(FrpType.Frps);
-    async Task SaveFrpcConfig() { await Manager.SaveConfigAsync(FrpType.Frpc, frpcConfig); logs.Insert(0, "[CFG] ±£´æ frpc.ini"); TrimDisplayed(); }
-    async Task SaveFrpsConfig() { await Manager.SaveConfigAsync(FrpType.Frps, frpsConfig); logs.Insert(0, "[CFG] ±£´æ frps.ini"); TrimDisplayed(); }
+    async Task SaveFrpcConfig() { await Manager.SaveConfigAsync(FrpType.Frpc, frpcConfig); logs.Insert(0, "[CFG] ä¿å­˜ frpc.ini"); TrimDisplayed(); }
+    async Task SaveFrpsConfig() { await Manager.SaveConfigAsync(FrpType.Frps, frpsConfig); logs.Insert(0, "[CFG] ä¿å­˜ frps.ini"); TrimDisplayed(); }
 
     async Task StartFrpcAsync(){ var r = await Manager.StartFrpcAsync(); logs.Insert(0,"[ACT] frpc: "+r.message); TrimDisplayed(); }
     async Task StartFrpsAsync(){ var r = await Manager.StartFrpsAsync(); logs.Insert(0,"[ACT] frps: "+r.message); TrimDisplayed(); }
@@ -172,7 +172,7 @@
         if (string.IsNullOrWhiteSpace(content)) return false;
         if (!content.Contains("[common", StringComparison.OrdinalIgnoreCase)) return false;
         if (!content.Contains("=", StringComparison.Ordinal)) return false;
-        // ¼òµ¥Ğ£Ñé: ĞĞÊı²»¿É¹ı´ó
+        // ç®€å•æ ¡éªŒ: è¡Œæ•°ä¸å¯è¿‡å¤§
         if (content.Count(c => c == '\n') > 5000) return false;
         return true;
     }
@@ -182,35 +182,35 @@
 #if ANDROID
         try
         {
-            var result = await FilePicker.Default.PickAsync(new PickOptions { PickerTitle = "Ñ¡Ôñ .ini ÅäÖÃÎÄ¼ş" });
+            var result = await FilePicker.Default.PickAsync(new PickOptions { PickerTitle = "é€‰æ‹© .ini é…ç½®æ–‡ä»¶" });
             if (result == null) return;
 
             var name = result.FileName ?? string.Empty;
             if (!name.EndsWith(".ini", StringComparison.OrdinalIgnoreCase))
             {
-                logs.Insert(0, "[ERR] ½öÖ§³Ö .ini ÎÄ¼ş: " + name); TrimDisplayed(); return;
+                logs.Insert(0, "[ERR] ä»…æ”¯æŒ .ini æ–‡ä»¶: " + name); TrimDisplayed(); return;
             }
 
             using var stream = await result.OpenReadAsync();
             try
             {
                 if (stream.CanSeek && stream.Length > ImportMaxBytes)
-                { logs.Insert(0, "[ERR] ÎÄ¼ş¹ı´ó(>512KB)" ); TrimDisplayed(); return; }
+                { logs.Insert(0, "[ERR] æ–‡ä»¶è¿‡å¤§(>512KB)" ); TrimDisplayed(); return; }
             }
             catch { }
 
             using var reader = new StreamReader(stream);
             var content = await reader.ReadToEndAsync();
             if (!IsValidIni(content))
-            { logs.Insert(0, "[ERR] ini ÄÚÈİĞ£ÑéÊ§°Ü, ±ØĞë°üº¬`[Common`ºÍ`=`" ); TrimDisplayed(); return; }
+            { logs.Insert(0, "[ERR] ini å†…å®¹æ ¡éªŒå¤±è´¥, å¿…é¡»åŒ…å«`[Common`å’Œ`=`" ); TrimDisplayed(); return; }
 
             if (type == FrpType.Frpc) { frpcConfig = content; await SaveFrpcConfig(); }
             else { frpsConfig = content; await SaveFrpsConfig(); }
-            logs.Insert(0, "[IMP] µ¼Èë³É¹¦: " + name); TrimDisplayed();
+            logs.Insert(0, "[IMP] å¯¼å…¥æˆåŠŸ: " + name); TrimDisplayed();
         }
         catch (Exception ex)
         {
-            logs.Insert(0, "[ERR] µ¼ÈëÊ§°Ü: " + ex.Message); TrimDisplayed();
+            logs.Insert(0, "[ERR] å¯¼å…¥å¤±è´¥: " + ex.Message); TrimDisplayed();
         }
 #endif
     }
