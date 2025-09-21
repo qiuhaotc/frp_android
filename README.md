@@ -1,6 +1,11 @@
 ﻿# frp Android 客户端
 
-![Stars](https://img.shields.io/github/stars/qiuhaotc/frp_android) ![Forks](https://img.shields.io/github/forks/qiuhaotc/frp_android) ![License](https://img.shields.io/github/license/qiuhaotc/frp_android) ![Release](https://img.shields.io/github/v/release/qiuhaotc/frp_android) ![Downloads](https://img.shields.io/github/downloads/qiuhaotc/frp_android/total) ![Issues](https://img.shields.io/github/issues/qiuhaotc/frp_android)
+[![Stars](https://img.shields.io/github/stars/qiuhaotc/frp_android)](https://github.com/qiuhaotc/frp_android)
+[![Forks](https://img.shields.io/github/forks/qiuhaotc/frp_android)](https://github.com/qiuhaotc/frp_android)
+[![License](https://img.shields.io/github/license/qiuhaotc/frp_android)](https://github.com/qiuhaotc/frp_android)
+[![Release](https://img.shields.io/github/v/release/qiuhaotc/frp_android)](https://github.com/qiuhaotc/frp_android/releases)
+[![Downloads](https://img.shields.io/github/downloads/qiuhaotc/frp_android/total.svg)](https://github.com/qiuhaotc/frp_android/releases)
+[![Issues](https://img.shields.io/github/issues/qiuhaotc/frp_android)](https://github.com/qiuhaotc/frp_android)
 
 [English](README_en.md) | 中文文档
 
