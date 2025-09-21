@@ -35,32 +35,43 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Decode keystore into project directory
-        if: ${{ secrets.ANDROID_KEYSTORE_B64 != '' }}
+      - name: Decode keystore (optional)
         run: |
           set -e
-          PROJECT_DIR="$(pwd)/src"  # FrpAndroid.csproj ËùÔÚÄ¿Â¼
-          KEYSTORE_PATH="$PROJECT_DIR/android.keystore"
-          echo "Decoding keystore to $KEYSTORE_PATH"
-          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > "$KEYSTORE_PATH"
-          ls -l "$KEYSTORE_PATH"
-          echo "ANDROID_KEYSTORE=$KEYSTORE_PATH" >> $GITHUB_ENV
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_B64 }}" ]; then
+            PROJECT_DIR="$(pwd)/src"
+            KEYSTORE_PATH="$PROJECT_DIR/android.keystore"
+            echo "Decoding keystore to $KEYSTORE_PATH"
+            echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > "$KEYSTORE_PATH"
+            ls -l "$KEYSTORE_PATH"
+            echo "ANDROID_KEYSTORE=$KEYSTORE_PATH" >> $GITHUB_ENV
+            echo "HAS_KEYSTORE=true" >> $GITHUB_ENV
+          else
+            echo "No keystore secret provided, build will be unsigned (debug style)."
+            echo "HAS_KEYSTORE=false" >> $GITHUB_ENV
+          fi
 
       - name: Restore
         run: dotnet restore $APP_PROJECT
 
       - name: Publish APK
         run: |
+          if [ "$HAS_KEYSTORE" = "true" ]; then
+            SIGN_ARGS="/p:AndroidKeyStore=true \
+            /p:ANDROID_KEYSTORE=$ANDROID_KEYSTORE \
+            /p:ANDROID_KEYSTORE_PASS=$ANDROID_KEYSTORE_PASS \
+            /p:ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS \
+            /p:ANDROID_KEY_ALIAS_PASS=$ANDROID_KEY_ALIAS_PASS"
+          else
+            SIGN_ARGS="/p:AndroidKeyStore=false"
+          fi
+          echo "Using SIGN_ARGS=$SIGN_ARGS"
           dotnet publish $APP_PROJECT \
             -c $Configuration \
             -f $Framework \
             /p:AndroidPackageFormat=$PackageFormat \
-            /p:AndroidKeyStore=true \
             /p:RunAOTCompilation=false \
-            $( [ -n "$ANDROID_KEYSTORE" ] && echo "/p:ANDROID_KEYSTORE=$ANDROID_KEYSTORE" ) \
-            $( [ -n "$ANDROID_KEYSTORE_PASS" ] && echo "/p:ANDROID_KEYSTORE_PASS=$ANDROID_KEYSTORE_PASS" ) \
-            $( [ -n "$ANDROID_KEY_ALIAS" ] && echo "/p:ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS" ) \
-            $( [ -n "$ANDROID_KEY_ALIAS_PASS" ] && echo "/p:ANDROID_KEY_ALIAS_PASS=$ANDROID_KEY_ALIAS_PASS" )
+            $SIGN_ARGS
 
       - name: Locate artifact
         id: find_apk
