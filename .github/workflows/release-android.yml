@@ -36,7 +36,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Decode keystore into project directory
-        if: ${{ secrets.ANDROID_KEYSTORE_B64 }}  != ''
+        if: ${{ secrets.ANDROID_KEYSTORE_B64 != '' }}
         run: |
           set -e
           PROJECT_DIR="$(pwd)/src"  # FrpAndroid.csproj ËùÔÚÄ¿Â¼
