@@ -1,0 +1,114 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g. v1.0.0) when manually dispatching'
+        required: false
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: true
+  Framework: net10.0-android
+  Configuration: Release
+  PackageFormat: apk
+  APP_PROJECT: src/FrpAndroid.csproj
+  OUTPUT_DIR: artifacts/android
+  ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+  ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+  ANDROID_KEY_ALIAS_PASS: ${{ secrets.ANDROID_KEY_ALIAS_PASS }}
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install MAUI Android workload (current SDK only)
+        run: |
+          set -e
+          SDK_VER=$(dotnet --version)
+            echo "Installing maui-android workload for SDK $SDK_VER"
+          dotnet workload install maui-android --source https://api.nuget.org/v3/index.json
+          dotnet workload list | grep maui-android || true
+
+      - name: Decode keystore (optional)
+        run: |
+          set -e
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_B64 }}" ]; then
+            PROJECT_DIR="src"
+            KEYSTORE_PATH="$PROJECT_DIR/frpandroid.keystore"
+            echo "Decoding keystore to $KEYSTORE_PATH"
+            echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > "$KEYSTORE_PATH"
+            ls -l "$KEYSTORE_PATH"
+            echo "ANDROID_KEYSTORE=$KEYSTORE_PATH" >> $GITHUB_ENV
+            echo "HAS_KEYSTORE=true" >> $GITHUB_ENV
+          else
+            echo "No keystore secret provided, build will be unsigned (debug style)."
+            echo "HAS_KEYSTORE=false" >> $GITHUB_ENV
+          fi
+
+      - name: Restore
+        run: dotnet restore $APP_PROJECT
+
+      - name: Publish APK
+        run: |
+          mkdir -p "$OUTPUT_DIR"
+          if [ "$HAS_KEYSTORE" = "true" ]; then
+            SIGN_ARGS=(
+              /p:AndroidKeyStore=true
+              /p:ANDROID_KEYSTORE=$ANDROID_KEYSTORE
+              /p:ANDROID_KEYSTORE_PASS=$ANDROID_KEYSTORE_PASS
+              /p:ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS
+              /p:ANDROID_KEY_ALIAS_PASS=$ANDROID_KEY_ALIAS_PASS
+            )
+          else
+            SIGN_ARGS=(/p:AndroidKeyStore=false)
+          fi
+          echo "Using SIGN_ARGS=${SIGN_ARGS[@]}"
+          dotnet publish $APP_PROJECT \
+            -c $Configuration \
+            -f $Framework \
+            /p:AndroidPackageFormat=$PackageFormat \
+            /p:RunAOTCompilation=false \
+            -o $OUTPUT_DIR \
+            ${SIGN_ARGS[@]}
+          echo "Publish directory contents:"; ls -l $OUTPUT_DIR
+
+      - name: Locate artifact
+        id: find_apk
+        run: |
+          APK=$(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*.apk' | head -n 1)
+          if [ -z "$APK" ]; then echo "No APK found in $OUTPUT_DIR"; ls -R "$OUTPUT_DIR" || true; exit 1; fi
+          echo "apk=$APK" >> $GITHUB_OUTPUT
+          echo "Found APK: $APK"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frpandroid-apk
+          path: ${{ steps.find_apk.outputs.apk }}
+          if-no-files-found: error
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || inputs.version }}
+          name: Release ${{ github.ref_name || inputs.version }}
+          draft: false
+          prerelease: false
+          files: ${{ steps.find_apk.outputs.apk }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
