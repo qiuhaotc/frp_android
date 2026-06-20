@@ -15,8 +15,8 @@ A lightweight .NET MAUI Android app to run and manage frp (both frpc & frps) dir
 
 ## Features
 
-- Start / stop frpc and frps (bundled native binaries, no extra download)
-- Auto-generate default `frpc.ini` / `frps.ini` on first launch
+- Start / stop frpc and frps (bundled native binaries, no extra download; bundled frp `0.69.1`)
+- Auto-generate default `frpc.toml` / `frps.toml` on first launch
 - In-app config editing & saving
 - Real-time log view (ANSI colors / control chars stripped)
 - Foreground service to reduce process killing
@@ -25,7 +25,7 @@ A lightweight .NET MAUI Android app to run and manage frp (both frpc & frps) dir
 ## Quick Start
 
 1. Install & open the app
-2. First launch writes default `frpc.ini` / `frps.ini`
+2. First launch writes default `frpc.toml` / `frps.toml`
 3. Edit configs in-app (e.g. expose an intranet service)
 4. Start frpc or frps and watch logs to verify
 

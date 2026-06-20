@@ -48,12 +48,13 @@ public class FrpManager
         return full;
     }
 
-    public string GetConfigPath(FrpType type) => Path.Combine(_appDataDir, type == FrpType.Frpc ? "frpc.ini" : "frps.ini");
+    public string GetConfigPath(FrpType type) => Path.Combine(_appDataDir, type == FrpType.Frpc ? "frpc.toml" : "frps.toml");
 
     void EnsureDefaults(FrpType type)
     {
-        if (type == FrpType.Frpc) EnsureConfig("frpc.ini", "[common]\nserver_addr=0.0.0.0\nserver_port=7000\n");
-        else EnsureConfig("frps.ini", "[common]\nbind_port=7000\n");
+        if (type == FrpType.Frpc) EnsureConfig("frpc.toml",
+            "serverAddr = \"127.0.0.1\"\nserverPort = 7000\n\n[[proxies]]\nname = \"test-tcp\"\ntype = \"tcp\"\nlocalIP = \"127.0.0.1\"\nlocalPort = 22\nremotePort = 6000\n");
+        else EnsureConfig("frps.toml", "bindPort = 7000\n");
     }
 
     public Task<string> ReadConfigAsync(FrpType type)

@@ -159,18 +159,17 @@
 
     async Task LoadFrpcConfig() => frpcConfig = await Manager.ReadConfigAsync(FrpType.Frpc);
     async Task LoadFrpsConfig() => frpsConfig = await Manager.ReadConfigAsync(FrpType.Frps);
-    async Task SaveFrpcConfig() { await Manager.SaveConfigAsync(FrpType.Frpc, frpcConfig); logs.Insert(0, "[CFG] 保存 frpc.ini"); TrimDisplayed(); }
-    async Task SaveFrpsConfig() { await Manager.SaveConfigAsync(FrpType.Frps, frpsConfig); logs.Insert(0, "[CFG] 保存 frps.ini"); TrimDisplayed(); }
+    async Task SaveFrpcConfig() { await Manager.SaveConfigAsync(FrpType.Frpc, frpcConfig); logs.Insert(0, "[CFG] 保存 frpc.toml"); TrimDisplayed(); }
+    async Task SaveFrpsConfig() { await Manager.SaveConfigAsync(FrpType.Frps, frpsConfig); logs.Insert(0, "[CFG] 保存 frps.toml"); TrimDisplayed(); }
 
     async Task StartFrpcAsync(){ var r = await Manager.StartFrpcAsync(); logs.Insert(0,"[ACT] frpc: "+r.message); TrimDisplayed(); }
     async Task StartFrpsAsync(){ var r = await Manager.StartFrpsAsync(); logs.Insert(0,"[ACT] frps: "+r.message); TrimDisplayed(); }
     void StopFrpcAction(){ if (Manager.StopFrpc()) { logs.Insert(0,"[ACT] frpc stopped"); TrimDisplayed(); } }
     void StopFrpsAction(){ if (Manager.StopFrps()) { logs.Insert(0,"[ACT] frps stopped"); TrimDisplayed(); } }
 
-    bool IsValidIni(string content)
+    bool IsValidToml(string content)
     {
         if (string.IsNullOrWhiteSpace(content)) return false;
-        if (!content.Contains("[common", StringComparison.OrdinalIgnoreCase)) return false;
         if (!content.Contains("=", StringComparison.Ordinal)) return false;
         // 简单校验: 行数不可过大
         if (content.Count(c => c == '\n') > 5000) return false;
@@ -182,13 +181,13 @@
 #if ANDROID
         try
         {
-            var result = await FilePicker.Default.PickAsync(new PickOptions { PickerTitle = "选择 .ini 配置文件" });
+            var result = await FilePicker.Default.PickAsync(new PickOptions { PickerTitle = "选择 .toml 配置文件" });
             if (result == null) return;
 
             var name = result.FileName ?? string.Empty;
-            if (!name.EndsWith(".ini", StringComparison.OrdinalIgnoreCase))
+            if (!name.EndsWith(".toml", StringComparison.OrdinalIgnoreCase))
             {
-                logs.Insert(0, "[ERR] 仅支持 .ini 文件: " + name); TrimDisplayed(); return;
+                logs.Insert(0, "[ERR] 仅支持 .toml 文件: " + name); TrimDisplayed(); return;
             }
 
             using var stream = await result.OpenReadAsync();
@@ -201,8 +200,8 @@
 
             using var reader = new StreamReader(stream);
             var content = await reader.ReadToEndAsync();
-            if (!IsValidIni(content))
-            { logs.Insert(0, "[ERR] ini 内容校验失败, 必须包含`[Common`和`=`" ); TrimDisplayed(); return; }
+            if (!IsValidToml(content))
+            { logs.Insert(0, "[ERR] toml 内容校验失败, 必须包含`=`" ); TrimDisplayed(); return; }
 
             if (type == FrpType.Frpc) { frpcConfig = content; await SaveFrpcConfig(); }
             else { frpsConfig = content; await SaveFrpsConfig(); }
