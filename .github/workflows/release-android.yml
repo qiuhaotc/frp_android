@@ -45,10 +45,20 @@ jobs:
       - name: Validate build script and project syntax
         shell: pwsh
         run: |
-          $tokens = $null
-          $parseErrors = $null
-          $null = [Management.Automation.Language.Parser]::ParseFile((Join-Path $env:GITHUB_WORKSPACE 'build/Get-FrpBinaries.ps1'), [ref]$tokens, [ref]$parseErrors)
-          if ($parseErrors.Count -ne 0) { throw ($parseErrors.Message -join [Environment]::NewLine) }
+          foreach ($scriptPath in @('build/Get-FrpBinaries.ps1', 'build/Get-FrpReleaseTag.ps1')) {
+            $tokens = $null
+            $parseErrors = $null
+            $null = [Management.Automation.Language.Parser]::ParseFile((Join-Path $env:GITHUB_WORKSPACE $scriptPath), [ref]$tokens, [ref]$parseErrors)
+            if ($parseErrors.Count -ne 0) { throw ($parseErrors.Message -join [Environment]::NewLine) }
+          }
+          $previousRelease = [pscustomobject]@{ tag_name = 'v2.0.1'; draft = $false; prerelease = $false }
+          $tag = & ./build/Get-FrpReleaseTag.ps1 -Releases @($previousRelease) -FrpVersion 0.71.1 -FallbackVersion 1.0
+          if ($tag.Tag -ne 'v2.0.1-frp0.71.1' -or -not $tag.ShouldBuild) { throw 'The automatic tag must use the previous application release version.' }
+          foreach ($existingTag in @('v2.0.1-frp0.71.1', 'v2.0.1-frp0.71.2')) {
+            $existingRelease = [pscustomobject]@{ tag_name = $existingTag; draft = $false; prerelease = $false }
+            $tag = & ./build/Get-FrpReleaseTag.ps1 -Releases @($existingRelease) -FrpVersion 0.71.1 -FallbackVersion 1.0
+            if ($tag.ShouldBuild) { throw 'An already published frp version must be skipped.' }
+          }
           [xml]$project = Get-Content -LiteralPath $env:APP_PROJECT -Raw
           if ($null -eq $project.SelectSingleNode('/Project/Target[@Name="PrepareFrpBinaries"]')) {
             throw 'The Android build is missing its frp preparation target.'
@@ -99,21 +109,22 @@ jobs:
           $automatic = $env:GITHUB_EVENT_NAME -ne 'push' -and [string]::IsNullOrEmpty($requestedTag)
 
           if ($automatic) {
+            $releaseHistory = [Collections.Generic.List[object]]::new()
             $page = 1
             do {
               $releases = Invoke-RestMethod -Uri "$repositoryApi/releases?per_page=100&page=$page" -Headers $headers -TimeoutSec 60
               foreach ($release in $releases) {
-                if (-not $release.draft -and -not $release.prerelease -and $release.tag_name -match '^v.+-frp(\d+\.\d+\.\d+)$') {
-                  if ([version]$Matches[1] -ge [version]$frp.version) {
-                    'should_build=false' >> $env:GITHUB_OUTPUT
-                    "frp $($frp.version) is already covered by release $($release.tag_name); build skipped." >> $env:GITHUB_STEP_SUMMARY
-                    exit 0
-                  }
-                }
+                $releaseHistory.Add($release)
               }
               $page++
             } while ($releases.Count -eq 100)
-            $releaseTag = "v$appVersion-frp$($frp.version)"
+            $automaticTag = & ./build/Get-FrpReleaseTag.ps1 -Releases $releaseHistory.ToArray() -FrpVersion $frp.version -FallbackVersion $appVersion
+            if (-not $automaticTag.ShouldBuild) {
+              'should_build=false' >> $env:GITHUB_OUTPUT
+              "frp $($frp.version) is already covered by release $($automaticTag.CoveredReleaseTag); build skipped." >> $env:GITHUB_STEP_SUMMARY
+              exit 0
+            }
+            $releaseTag = $automaticTag.Tag
           } elseif ($env:GITHUB_EVENT_NAME -eq 'push') {
             $releaseTag = $env:GITHUB_REF_NAME
           } else {
@@ -309,7 +320,7 @@ jobs:
         with:
           tag_name: ${{ needs.check-frp.outputs.release_tag }}
           target_commitish: ${{ needs.check-frp.outputs.source_commit }}
-          name: FrpAndroid ${{ needs.check-frp.outputs.app_version }} (frp ${{ needs.check-frp.outputs.frp_version }})
+          name: FrpAndroid ${{ needs.check-frp.outputs.release_tag }}
           draft: true
           prerelease: false
           fail_on_unmatched_files: true
