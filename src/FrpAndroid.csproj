@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFrameworks>net10.0-android</TargetFrameworks>
+    <RuntimeIdentifiers Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">android-arm;android-arm64</RuntimeIdentifiers>
     <OutputType>Exe</OutputType>
     <RootNamespace>FrpAndroid</RootNamespace>
     <UseMaui>true</UseMaui>
@@ -15,6 +16,13 @@
     <ApplicationVersion>1</ApplicationVersion>
     <WindowsPackageType>None</WindowsPackageType>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <FrpCacheDirectory Condition="'$(FrpCacheDirectory)' == ''">$(MSBuildProjectDirectory)/obj/frp</FrpCacheDirectory>
+    <FrpPowerShell Condition="'$(FrpPowerShell)' == '' and '$(OS)' == 'Windows_NT'">powershell.exe</FrpPowerShell>
+    <FrpPowerShell Condition="'$(FrpPowerShell)' == ''">pwsh</FrpPowerShell>
+    <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
   </PropertyGroup>
 
   <!-- Signing values pulled from environment variables if present -->
@@ -35,16 +43,55 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AndroidNativeLibrary Include="Resources\Raw\arm64-v8a\libfrpc.so" />
-    <AndroidNativeLibrary Include="Resources\Raw\arm64-v8a\libfrps.so" />
-    <AndroidNativeLibrary Include="Resources\Raw\armeabi-v7a\libfrpc.so" />
-    <AndroidNativeLibrary Include="Resources\Raw\armeabi-v7a\libfrps.so" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.5" />
   </ItemGroup>
+
+  <Target Name="PrepareFrpBinaries"
+          BeforeTargets="PrepareForBuild"
+      Condition="'$(DesignTimeBuild)' != 'true' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <PropertyGroup>
+      <_FrpVersionArgument Condition="'$(FrpVersion)' != ''">-Version &quot;$(FrpVersion)&quot;</_FrpVersionArgument>
+      <_FrpInputsFile>$(IntermediateOutputPath)frp-binaries.inputs</_FrpInputsFile>
+    </PropertyGroup>
+
+    <Exec Command="&quot;$(FrpPowerShell)&quot; -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)/../build/Get-FrpBinaries.ps1&quot; $(_FrpVersionArgument) -CacheDirectory &quot;$(FrpCacheDirectory)&quot;"
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+      EnvironmentVariables="PSModulePath="
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="Low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_FrpNativeDirectory" />
+    </Exec>
+
+    <Error Condition="'$(_FrpNativeDirectory)' == ''" Text="The frp downloader did not return a native library directory." />
+
+    <PropertyGroup>
+      <_FrpBuildIdentity>frp=$(_FrpNativeDirectory)|versionCode=$(ApplicationVersion)|versionName=$(ApplicationDisplayVersion)</_FrpBuildIdentity>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <AndroidNativeLibrary Include="$(_FrpNativeDirectory)/arm64-v8a/libfrpc.so" />
+      <AndroidNativeLibrary Include="$(_FrpNativeDirectory)/arm64-v8a/libfrps.so" />
+      <AndroidNativeLibrary Include="$(_FrpNativeDirectory)/armeabi-v7a/libfrpc.so" />
+      <AndroidNativeLibrary Include="$(_FrpNativeDirectory)/armeabi-v7a/libfrps.so" />
+      <_GenerateJavaStubsInputs Include="$(_FrpInputsFile)" />
+      <FileWrites Include="$(_FrpInputsFile)" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(IntermediateOutputPath)" />
+    <ReadLinesFromFile File="$(_FrpInputsFile)" Condition="Exists('$(_FrpInputsFile)')">
+      <Output TaskParameter="Lines" ItemName="_PreviousFrpInputs" />
+    </ReadLinesFromFile>
+    <WriteLinesToFile File="$(_FrpInputsFile)" Lines="$(_FrpBuildIdentity)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <Touch Files="@(AndroidNativeLibrary)" Condition="'@(_PreviousFrpInputs)' != '$(_FrpBuildIdentity)'" />
+
+    <PropertyGroup>
+      <_BuildApkEmbedInputs>$(_BuildApkEmbedInputs);@(AndroidNativeLibrary);$(_FrpInputsFile)</_BuildApkEmbedInputs>
+      <_BuildApkFastDevStaticInputs>$(_BuildApkFastDevStaticInputs);@(AndroidNativeLibrary);$(_FrpInputsFile)</_BuildApkFastDevStaticInputs>
+    </PropertyGroup>
+
+    <Message Text="Using frp binaries from $(_FrpNativeDirectory)" Importance="high" />
+  </Target>
 
 </Project>

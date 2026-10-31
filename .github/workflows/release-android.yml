@@ -4,14 +4,24 @@ on:
   push:
     tags:
       - 'v*'
+      - '!v*-frp*'
+  schedule:
+    - cron: '0 3 * * 1'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version (e.g. v1.0.0) when manually dispatching'
+        description: 'Release tag (e.g. v1.0.1); leave empty to check for frp updates'
+        required: false
+      frp_version:
+        description: 'Optional fixed stable frp version (e.g. 0.71.1); defaults to latest'
         required: false
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
 
 env:
   DOTNET_NOLOGO: true
@@ -20,96 +30,335 @@ env:
   PackageFormat: apk
   APP_PROJECT: src/FrpAndroid.csproj
   OUTPUT_DIR: artifacts/android
-  ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
-  ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-  ANDROID_KEY_ALIAS_PASS: ${{ secrets.ANDROID_KEY_ALIAS_PASS }}
 
 jobs:
-  build-release:
+  validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate workflow syntax
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/repo" -w /repo rhysd/actionlint:1.7.7 -shellcheck= .github/workflows/release-android.yml
+
+      - name: Validate build script and project syntax
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          $null = [Management.Automation.Language.Parser]::ParseFile((Join-Path $env:GITHUB_WORKSPACE 'build/Get-FrpBinaries.ps1'), [ref]$tokens, [ref]$parseErrors)
+          if ($parseErrors.Count -ne 0) { throw ($parseErrors.Message -join [Environment]::NewLine) }
+          [xml]$project = Get-Content -LiteralPath $env:APP_PROJECT -Raw
+          if ($null -eq $project.SelectSingleNode('/Project/Target[@Name="PrepareFrpBinaries"]')) {
+            throw 'The Android build is missing its frp preparation target.'
+          }
+
+  check-frp:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      should_build: ${{ steps.prepare.outputs.should_build }}
+      frp_version: ${{ steps.prepare.outputs.frp_version }}
+      frp_url: ${{ steps.prepare.outputs.frp_url }}
+      release_tag: ${{ steps.prepare.outputs.release_tag }}
+      app_version: ${{ steps.prepare.outputs.app_version }}
+      version_code: ${{ steps.prepare.outputs.version_code }}
+      source_commit: ${{ steps.prepare.outputs.source_commit }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve frp version and release tag
+        id: prepare
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUESTED_RELEASE_TAG: ${{ inputs.version }}
+          REQUESTED_FRP_VERSION: ${{ inputs.frp_version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $frp = & ./build/Get-FrpBinaries.ps1 -Version $env:REQUESTED_FRP_VERSION -ResolveOnly | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to resolve the frp release.' }
+
+          [xml]$project = Get-Content -LiteralPath $env:APP_PROJECT -Raw
+          $appVersionNode = $project.SelectSingleNode('/Project/PropertyGroup/ApplicationDisplayVersion')
+          if ($null -eq $appVersionNode) { throw 'ApplicationDisplayVersion is missing.' }
+          $appVersion = $appVersionNode.InnerText.Trim()
+          if ($appVersion -notmatch '^\d+(\.\d+){1,3}$') { throw 'ApplicationDisplayVersion must be a literal numeric version.' }
+
+          $headers = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'User-Agent' = 'FrpAndroid-release'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $repositoryApi = "https://api.github.com/repos/$env:GITHUB_REPOSITORY"
+          $requestedTag = "$env:REQUESTED_RELEASE_TAG".Trim()
+          $automatic = $env:GITHUB_EVENT_NAME -ne 'push' -and [string]::IsNullOrEmpty($requestedTag)
+
+          if ($automatic) {
+            $page = 1
+            do {
+              $releases = Invoke-RestMethod -Uri "$repositoryApi/releases?per_page=100&page=$page" -Headers $headers -TimeoutSec 60
+              foreach ($release in $releases) {
+                if (-not $release.draft -and -not $release.prerelease -and $release.tag_name -match '^v.+-frp(\d+\.\d+\.\d+)$') {
+                  if ([version]$Matches[1] -ge [version]$frp.version) {
+                    'should_build=false' >> $env:GITHUB_OUTPUT
+                    "frp $($frp.version) is already covered by release $($release.tag_name); build skipped." >> $env:GITHUB_STEP_SUMMARY
+                    exit 0
+                  }
+                }
+              }
+              $page++
+            } while ($releases.Count -eq 100)
+            $releaseTag = "v$appVersion-frp$($frp.version)"
+          } elseif ($env:GITHUB_EVENT_NAME -eq 'push') {
+            $releaseTag = $env:GITHUB_REF_NAME
+          } else {
+            $releaseTag = $requestedTag
+          }
+
+          if ($releaseTag -notmatch '^v[0-9][0-9A-Za-z.+-]*$') { throw 'Release tags must start with v and a numeric version.' }
+          $existingReleaseStatus = 0
+          $null = Invoke-RestMethod -Uri "$repositoryApi/releases/tags/$releaseTag" -Headers $headers -SkipHttpErrorCheck -StatusCodeVariable existingReleaseStatus -TimeoutSec 60
+          if ($existingReleaseStatus -eq 200) { throw "Release $releaseTag already exists; it will not be overwritten." }
+          if ($existingReleaseStatus -ne 404) { throw "Release lookup failed with HTTP $existingReleaseStatus." }
+
+          $sourceCommit = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to resolve the source commit.' }
+          $tagStatus = 0
+          $tagReference = Invoke-RestMethod -Uri "$repositoryApi/git/ref/tags/$releaseTag" -Headers $headers -SkipHttpErrorCheck -StatusCodeVariable tagStatus -TimeoutSec 60
+          if ($tagStatus -eq 200) {
+            $tagObject = $tagReference.object
+            while ($tagObject.type -eq 'tag') {
+              $annotatedTag = Invoke-RestMethod -Uri "$repositoryApi/git/tags/$($tagObject.sha)" -Headers $headers -TimeoutSec 60
+              $tagObject = $annotatedTag.object
+            }
+            if ($tagObject.type -ne 'commit' -or $tagObject.sha -ne $sourceCommit) {
+              throw 'The existing release tag points to another commit. Select that tag as the workflow ref.'
+            }
+          } elseif ($tagStatus -ne 404) {
+            throw "Tag lookup failed with HTTP $tagStatus."
+          }
+
+          $versionCode = [long]$env:GITHUB_RUN_NUMBER + 1
+          if ($versionCode -gt 2100000000) { throw 'The Android versionCode limit has been reached.' }
+          'should_build=true' >> $env:GITHUB_OUTPUT
+          "frp_version=$($frp.version)" >> $env:GITHUB_OUTPUT
+          "frp_url=$($frp.url)" >> $env:GITHUB_OUTPUT
+          "release_tag=$releaseTag" >> $env:GITHUB_OUTPUT
+          "app_version=$appVersion" >> $env:GITHUB_OUTPUT
+          "version_code=$versionCode" >> $env:GITHUB_OUTPUT
+          "source_commit=$sourceCommit" >> $env:GITHUB_OUTPUT
+          "Building $releaseTag with frp $($frp.version), Android versionCode $versionCode." >> $env:GITHUB_STEP_SUMMARY
+
+  build-release:
+    needs: check-frp
+    if: needs.check-frp.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+      ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_ALIAS_PASS: ${{ secrets.ANDROID_KEY_ALIAS_PASS }}
+      FRP_VERSION: ${{ needs.check-frp.outputs.frp_version }}
+      FRP_URL: ${{ needs.check-frp.outputs.frp_url }}
+      RELEASE_TAG: ${{ needs.check-frp.outputs.release_tag }}
+      APP_DISPLAY_VERSION: ${{ needs.check-frp.outputs.app_version }}
+      APP_VERSION_CODE: ${{ needs.check-frp.outputs.version_code }}
+      SOURCE_COMMIT: ${{ needs.check-frp.outputs.source_commit }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.check-frp.outputs.source_commit }}
+
+      - name: Validate and decode signing keystore
+        shell: pwsh
+        run: |
+          foreach ($secretName in @('ANDROID_KEYSTORE_B64', 'ANDROID_KEYSTORE_PASS', 'ANDROID_KEY_ALIAS', 'ANDROID_KEY_ALIAS_PASS')) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($secretName))) {
+              throw "Required release signing secret is missing: $secretName"
+            }
+          }
+          [IO.File]::WriteAllBytes((Join-Path $env:GITHUB_WORKSPACE 'src/frp.keystore'), [Convert]::FromBase64String($env:ANDROID_KEYSTORE_B64))
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: Install MAUI Android workload (current SDK only)
-        run: |
-          set -e
-          SDK_VER=$(dotnet --version)
-            echo "Installing maui-android workload for SDK $SDK_VER"
-          dotnet workload install maui-android --source https://api.nuget.org/v3/index.json
-          dotnet workload list | grep maui-android || true
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
 
-      - name: Decode keystore (optional)
+      - name: Install MAUI Android workload
+        run: dotnet workload install maui-android --source https://api.nuget.org/v3/index.json
+
+      - name: Cache verified frp binaries
+        uses: actions/cache@v4
+        with:
+          path: src/obj/frp
+          key: frp-${{ runner.os }}-${{ hashFiles('build/Get-FrpBinaries.ps1') }}-${{ needs.check-frp.outputs.frp_version }}
+
+      - name: Download the resolved frp version
+        shell: pwsh
         run: |
-          set -e
-          if [ -n "${{ secrets.ANDROID_KEYSTORE_B64 }}" ]; then
-            PROJECT_DIR="src"
-            KEYSTORE_PATH="$PROJECT_DIR/frp.keystore"
-            echo "Decoding keystore to $KEYSTORE_PATH"
-            echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > "$KEYSTORE_PATH"
-            ls -l "$KEYSTORE_PATH"
-            echo "ANDROID_KEYSTORE=$KEYSTORE_PATH" >> $GITHUB_ENV
-            echo "HAS_KEYSTORE=true" >> $GITHUB_ENV
-          else
-            echo "No keystore secret provided, build will be unsigned (debug style)."
-            echo "HAS_KEYSTORE=false" >> $GITHUB_ENV
-          fi
+          & ./build/Get-FrpBinaries.ps1 -Version $env:FRP_VERSION
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to prepare frp binaries.' }
 
       - name: Restore
-        run: dotnet restore $APP_PROJECT
+        run: dotnet restore "$APP_PROJECT" -p:Configuration="$Configuration"
 
       - name: Publish APK
+        shell: pwsh
         run: |
-          mkdir -p "$OUTPUT_DIR"
-          if [ "$HAS_KEYSTORE" = "true" ]; then
-            SIGN_ARGS=(
-              /p:AndroidKeyStore=true
-              /p:ANDROID_KEYSTORE_PASS=$ANDROID_KEYSTORE_PASS
-              /p:ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS
-              /p:ANDROID_KEY_ALIAS_PASS=$ANDROID_KEY_ALIAS_PASS
-            )
-          else
-            SIGN_ARGS=(/p:AndroidKeyStore=false)
-          fi
-          echo "Using SIGN_ARGS=${SIGN_ARGS[@]}"
-          dotnet publish $APP_PROJECT \
-            -c $Configuration \
-            -f $Framework \
-            /p:AndroidPackageFormat=$PackageFormat \
-            /p:RunAOTCompilation=false \
-            -o $OUTPUT_DIR \
-            ${SIGN_ARGS[@]}
-          echo "Publish directory contents:"; ls -l $OUTPUT_DIR
+          $publishArgs = @(
+            'publish', $env:APP_PROJECT,
+            '--no-restore',
+            '-c', $env:Configuration,
+            '-f', $env:Framework,
+            "-p:AndroidPackageFormats=$env:PackageFormat",
+            '-p:AndroidKeyStore=true',
+            '-p:AndroidStripNativeLibraries=false',
+            '-p:RunAOTCompilation=false',
+            "-p:ApplicationVersion=$env:APP_VERSION_CODE",
+            "-p:FrpVersion=$env:FRP_VERSION",
+            '-o', $env:OUTPUT_DIR
+          )
+          & dotnet @publishArgs
+          if ($LASTEXITCODE -ne 0) { throw "APK publish failed (exit $LASTEXITCODE)." }
 
-      - name: Locate artifact
+      - name: Verify APK native payload and record provenance
         id: find_apk
+        shell: pwsh
         run: |
-          APK=$(find "$OUTPUT_DIR" -maxdepth 1 -type f -name 'com.qiuhaotc.frpandroid-Signed.apk' | head -n 1)
-          if [ -z "$APK" ]; then APK=$(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*Signed.apk' | head -n 1); fi
-          if [ -z "$APK" ]; then APK=$(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*.apk' | head -n 1); fi
-          if [ -z "$APK" ]; then echo "No APK found in $OUTPUT_DIR"; ls -R "$OUTPUT_DIR" || true; exit 1; fi
-          echo "apk=$APK" >> $GITHUB_OUTPUT
-          echo "Found APK: $APK"
+          $apks = @(Get-ChildItem -LiteralPath $env:OUTPUT_DIR -Filter '*Signed.apk' -File)
+          if ($apks.Count -ne 1) { throw 'Expected exactly one signed APK.' }
+          $apk = $apks[0]
+          $androidSdk = $env:ANDROID_HOME
+          if ([string]::IsNullOrWhiteSpace($androidSdk)) { $androidSdk = $env:ANDROID_SDK_ROOT }
+          if ([string]::IsNullOrWhiteSpace($androidSdk)) { throw 'Android SDK location is missing.' }
+          $aapt2 = Get-ChildItem -LiteralPath (Join-Path $androidSdk 'build-tools') -Filter aapt2 -File -Recurse | Sort-Object FullName -Descending | Select-Object -First 1
+          if ($null -eq $aapt2) { throw 'Android SDK aapt2 is missing.' }
+          $badging = & $aapt2.FullName dump badging $apk.FullName
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to read the APK version metadata.' }
+          $metadata = [regex]::Match(($badging -join "`n"), "(?m)^package: .*versionCode='(?<Code>\d+)' versionName='(?<Name>[^']*)'")
+          if (-not $metadata.Success -or $metadata.Groups['Code'].Value -ne $env:APP_VERSION_CODE -or $metadata.Groups['Name'].Value -ne $env:APP_DISPLAY_VERSION) {
+            throw 'APK version metadata does not match the release version.'
+          }
+          $manifestPath = "src/obj/frp/$env:FRP_VERSION/manifest.json"
+          $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+          if ($manifest.version -ne $env:FRP_VERSION) { throw 'The frp cache manifest version does not match the build.' }
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [IO.Compression.ZipFile]::OpenRead($apk.FullName)
+          $sha256 = [Security.Cryptography.SHA256]::Create()
+          try {
+            foreach ($abi in @('arm64-v8a', 'armeabi-v7a')) {
+              foreach ($program in @('frpc', 'frps')) {
+                $relativePath = "$abi/lib$program.so"
+                $entry = $archive.GetEntry("lib/$relativePath")
+                if ($null -eq $entry) { throw "APK is missing lib/$relativePath." }
+                $stream = $entry.Open()
+                try {
+                  $hash = [BitConverter]::ToString($sha256.ComputeHash($stream)).Replace('-', '').ToLowerInvariant()
+                } finally {
+                  $stream.Dispose()
+                }
+                if ($hash -ne $manifest.files.PSObject.Properties[$relativePath].Value) {
+                  throw "APK payload checksum mismatch for $relativePath."
+                }
+              }
+            }
+          } finally {
+            $sha256.Dispose()
+            $archive.Dispose()
+          }
+
+          $provenancePath = Join-Path $env:OUTPUT_DIR 'frp-binaries.json'
+          [ordered]@{
+            applicationDisplayVersion = $env:APP_DISPLAY_VERSION
+            applicationVersion = [long]$env:APP_VERSION_CODE
+            sourceCommit = $env:SOURCE_COMMIT
+            frp = $manifest
+          } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $provenancePath -Encoding UTF8
+          "apk=$($apk.FullName)" >> $env:GITHUB_OUTPUT
+          "provenance=$provenancePath" >> $env:GITHUB_OUTPUT
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: frpandroid-apk
-          path: ${{ steps.find_apk.outputs.apk }}
+          path: |
+            ${{ steps.find_apk.outputs.apk }}
+            ${{ steps.find_apk.outputs.provenance }}
           if-no-files-found: error
 
-      - name: Create Release
+      - name: Upload release files to a draft
+        id: draft
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name || inputs.version }}
-          name: Release ${{ github.ref_name || inputs.version }}
-          draft: false
+          tag_name: ${{ needs.check-frp.outputs.release_tag }}
+          target_commitish: ${{ needs.check-frp.outputs.source_commit }}
+          name: FrpAndroid ${{ needs.check-frp.outputs.app_version }} (frp ${{ needs.check-frp.outputs.frp_version }})
+          draft: true
           prerelease: false
-          files: ${{ steps.find_apk.outputs.apk }}
+          fail_on_unmatched_files: true
+          body: |
+            Bundled frp: [v${{ needs.check-frp.outputs.frp_version }}](${{ needs.check-frp.outputs.frp_url }}).
+            Architectures: arm64-v8a and armeabi-v7a (frpc and frps).
+            Android versionCode: ${{ needs.check-frp.outputs.version_code }}.
+            Source commit: ${{ needs.check-frp.outputs.source_commit }}.
+            See frp-binaries.json for upstream archive and packaged binary SHA-256 checksums.
+
+            <!-- frpandroid-run-id: ${{ github.run_id }} -->
+          files: |
+            ${{ steps.find_apk.outputs.apk }}
+            ${{ steps.find_apk.outputs.provenance }}
+
+      - name: Publish the completed release
+        shell: pwsh
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ steps.draft.outputs.id }}
+          APK_PATH: ${{ steps.find_apk.outputs.apk }}
+        run: |
+          $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json'; 'User-Agent' = 'FrpAndroid-release' }
+          $releaseUri = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/$env:RELEASE_ID"
+          $release = Invoke-RestMethod -Uri $releaseUri -Headers $headers -TimeoutSec 60
+          foreach ($assetName in @([IO.Path]::GetFileName($env:APK_PATH), 'frp-binaries.json')) {
+            $assets = @($release.assets | Where-Object { $_.name -eq $assetName -and $_.state -eq 'uploaded' -and $_.size -gt 0 })
+            if ($assets.Count -ne 1) { throw "Release asset is incomplete: $assetName" }
+          }
+          $body = @{ draft = $false; make_latest = 'true' } | ConvertTo-Json
+          $null = Invoke-RestMethod -Method Patch -Uri $releaseUri -Headers $headers -ContentType 'application/json' -Body $body -TimeoutSec 60
+          "Published $env:RELEASE_TAG with frp $env:FRP_VERSION." >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Remove this run's failed draft
+        if: failure()
+        shell: pwsh
+        run: |
+          $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json'; 'User-Agent' = 'FrpAndroid-release' }
+          $repositoryApi = "https://api.github.com/repos/$env:GITHUB_REPOSITORY"
+          try {
+            $status = 0
+            $release = Invoke-RestMethod -Uri "$repositoryApi/releases/tags/$env:RELEASE_TAG" -Headers $headers -SkipHttpErrorCheck -StatusCodeVariable status -TimeoutSec 60
+            if ($status -eq 200 -and $release.draft -and "$($release.body)".Contains("<!-- frpandroid-run-id: $env:GITHUB_RUN_ID -->")) {
+              $null = Invoke-RestMethod -Method Delete -Uri "$repositoryApi/releases/$($release.id)" -Headers $headers -TimeoutSec 60
+            }
+          } catch {
+            Write-Warning 'Failed to clean up the draft. Remove the failed draft before retrying this release tag.'
+          }
+
+      - name: Remove signing keystore
+        if: always()
+        shell: pwsh
+        run: Remove-Item -LiteralPath src/frp.keystore -Force -ErrorAction SilentlyContinue

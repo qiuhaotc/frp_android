@@ -367,3 +367,9 @@ FodyWeavers.xsd
 
 # powershell
 *.ps1
+!/build/Get-FrpBinaries.ps1
+
+# Generated frp binaries and release output
+/src/Resources/Raw/*/libfrpc.so
+/src/Resources/Raw/*/libfrps.so
+/artifacts/
